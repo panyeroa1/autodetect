@@ -36,12 +36,21 @@ export async function decodeAudioData(
 }
 
 /**
- * simple wrapper to play a buffer
+ * simple wrapper to play a buffer with volume control
  */
-export function playBuffer(ctx: AudioContext, buffer: AudioBuffer, onEnded?: () => void): void {
+export function playBuffer(ctx: AudioContext, buffer: AudioBuffer, volume: number = 1.0, onEnded?: () => void): void {
   const source = ctx.createBufferSource();
+  const gainNode = ctx.createGain();
+  
   source.buffer = buffer;
-  source.connect(ctx.destination);
+  
+  // Connect Source -> Gain -> Destination
+  source.connect(gainNode);
+  gainNode.connect(ctx.destination);
+  
+  // Set volume (Gain)
+  gainNode.gain.value = volume;
+
   if (onEnded) {
     source.addEventListener('ended', onEnded);
   }

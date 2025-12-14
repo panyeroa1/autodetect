@@ -3,7 +3,7 @@ import {
   Mic, MicOff, Video, VideoOff, PhoneOff, Globe, 
   Sparkles, Volume2, VolumeX, Monitor, MonitorOff, 
   Users, Captions, CaptionsOff, Zap, ZapOff,
-  Calendar, Mail, HardDrive, MessageSquare, Disc, Settings
+  Calendar, Mail, HardDrive, MessageSquare, Disc, Settings, Wind
 } from 'lucide-react';
 import { Language } from '../types';
 import { AudioVisualizer } from './AudioVisualizer';
@@ -21,6 +21,8 @@ interface ControlBarProps {
   localStream: MediaStream | null;
   isMyTranslatorMuted: boolean;
   onToggleMyTranslatorMute: () => void;
+  isWhisperMode: boolean;
+  onToggleWhisperMode: () => void;
   isScreenSharing: boolean;
   onToggleScreenShare: () => void;
   showParticipants: boolean;
@@ -85,6 +87,8 @@ export const ControlBar: React.FC<ControlBarProps> = ({
   localStream,
   isMyTranslatorMuted,
   onToggleMyTranslatorMute,
+  isWhisperMode,
+  onToggleWhisperMode,
   isScreenSharing,
   onToggleScreenShare,
   showParticipants,
@@ -119,6 +123,14 @@ export const ControlBar: React.FC<ControlBarProps> = ({
                 icon={isMyTranslatorMuted ? <VolumeX size={20} /> : <Sparkles size={20} />}
                 label={isMyTranslatorMuted ? "Unmute My Translation" : "Mute My Translation"}
                 primary={!isMyTranslatorMuted}
+             />
+             <DockButton
+                onClick={onToggleWhisperMode}
+                active={isWhisperMode}
+                icon={<Wind size={20} />}
+                label={isWhisperMode ? "Normal Voice Mode" : "Whisper Mode"}
+                primary={isWhisperMode}
+                className={isWhisperMode ? "bg-teal-500/20 text-teal-300 border-teal-500/30" : ""}
              />
           </div>
 

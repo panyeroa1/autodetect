@@ -63,6 +63,7 @@ export default function App() {
   const [isMicOn, setIsMicOn] = useState(true);
   const [isSpeakerOn, setIsSpeakerOn] = useState(true); // Remote Volume
   const [isMyTranslatorMuted, setIsMyTranslatorMuted] = useState(false); // Default UNMUTED
+  const [isWhisperMode, setIsWhisperMode] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
   const [speakingUserId, setSpeakingUserId] = useState<string | null>(null);
   const [showCaptions, setShowCaptions] = useState(true);
@@ -190,6 +191,12 @@ export default function App() {
 
     return () => subscription.unsubscribe();
   }, [preferences.darkMode]);
+
+  // Update audio queue volume when whisper mode changes
+  useEffect(() => {
+    // 0.25 (25%) volume for whisper, 1.0 (100%) for normal
+    audioQueue.setVolume(isWhisperMode ? 0.25 : 1.0);
+  }, [isWhisperMode]);
 
   const loadUserData = async (userId: string) => {
     try {
@@ -682,6 +689,8 @@ export default function App() {
         onToggleHistory={() => setShowHistory(!showHistory)}
         isMyTranslatorMuted={isMyTranslatorMuted}
         onToggleMyTranslatorMute={() => setIsMyTranslatorMuted(!isMyTranslatorMuted)}
+        isWhisperMode={isWhisperMode}
+        onToggleWhisperMode={() => setIsWhisperMode(!isWhisperMode)}
         isScreenSharing={!!screenStream}
         onToggleScreenShare={handleToggleScreenShare}
         showParticipants={showParticipants}

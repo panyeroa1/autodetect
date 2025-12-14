@@ -9,9 +9,15 @@ class AudioQueueService {
   private queue: AudioTask[] = [];
   private isPlaying: boolean = false;
   private audioContext: AudioContext | null = null;
+  private volume: number = 1.0;
 
   setAudioContext(ctx: AudioContext) {
     this.audioContext = ctx;
+  }
+
+  setVolume(vol: number) {
+    // Clamp between 0 and 1
+    this.volume = Math.max(0, Math.min(1, vol));
   }
 
   enqueue(buffer: AudioBuffer) {
@@ -30,7 +36,7 @@ class AudioQueueService {
 
     this.isPlaying = true;
 
-    playBuffer(this.audioContext, task.buffer, () => {
+    playBuffer(this.audioContext, task.buffer, this.volume, () => {
       this.isPlaying = false;
       // Slight delay between sentences for natural pacing
       setTimeout(() => this.processQueue(), 200);
