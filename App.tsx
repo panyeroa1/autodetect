@@ -22,8 +22,8 @@ import { supabase } from './lib/supabase';
 
 // Mock Contacts for Demo
 const MOCK_CONTACTS: User[] = [
-  { id: 'u2', name: 'Alice', avatar: '👩‍🎨', language: Language.SPANISH, voice: 'Kore' },
-  { id: 'u3', name: 'Bob', avatar: '👨‍🚀', language: Language.FRENCH, voice: 'Charon' },
+  { id: 'u2', name: 'Alice', avatar: '👩‍🎨', language: Language.SPANISH_ES, voice: 'Kore' },
+  { id: 'u3', name: 'Bob', avatar: '👨‍🚀', language: Language.FRENCH_FR, voice: 'Charon' },
 ];
 
 export interface LiveCaption {
@@ -126,6 +126,21 @@ export default function App() {
   };
 
   // --- Initial Load & Auth ---
+  
+  // Safety Timeout to prevent infinite loading
+  useEffect(() => {
+    const timer = setTimeout(() => {
+        if (loadingInitial) {
+            console.warn("Auth initialization timed out, releasing loading lock.");
+            setLoadingInitial(false);
+            // If we don't have a user by now, default to profile/signin view
+            if (!currentUser) setView('profile');
+        }
+    }, 4000); // 4 seconds timeout
+
+    return () => clearTimeout(timer);
+  }, [loadingInitial, currentUser]);
+
   useEffect(() => {
     // Apply preferences
     if (preferences.darkMode) {
@@ -135,44 +150,61 @@ export default function App() {
     }
 
     const handleAuthUser = async (authUser: any) => {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', authUser.id)
-          .single();
-          
-        if (profile) {
-            handleProfileComplete(profile);
-        } else {
-            const newProfile: User = {
-                id: authUser.id,
-                name: authUser.user_metadata.full_name || authUser.email?.split('@')[0] || 'User',
-                avatar: authUser.user_metadata.avatar_url || authUser.user_metadata.picture || `https://ui-avatars.com/api/?name=${authUser.email}`,
-                language: Language.ENGLISH, // Default
-                voice: 'Fenrir' // Default
-            };
-            await supabase.from('profiles').upsert([newProfile]);
-            handleProfileComplete(newProfile);
+        try {
+            const { data: profile, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', authUser.id)
+              .single();
+              
+            if (profile) {
+                handleProfileComplete(profile);
+            } else {
+                const newProfile: User = {
+                    id: authUser.id,
+                    name: authUser.user_metadata.full_name || authUser.email?.split('@')[0] || 'User',
+                    avatar: authUser.user_metadata.avatar_url || authUser.user_metadata.picture || `https://ui-avatars.com/api/?name=${authUser.email}`,
+                    language: Language.ENGLISH_US, // Default
+                    voice: 'Fenrir' // Default
+                };
+                
+                // Attempt to save new profile
+                const { error: upsertError } = await supabase.from('profiles').upsert([newProfile]);
+                if (upsertError) console.warn("Upsert profile warning:", upsertError);
+                
+                handleProfileComplete(newProfile);
+            }
+        } catch (e) {
+            console.error("Error handling auth user:", e);
+            setLoadingInitial(false);
         }
     };
 
     const initAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-         await handleAuthUser(session.user);
-      } else {
-         const storedUser = localStorage.getItem('orbitz_user');
-         if (storedUser) {
-             try {
-                const user: User = JSON.parse(storedUser);
-                setCurrentUser(user);
-                await loadUserData(user.id);
-                setView('dashboard');
-             } catch(e) { setView('profile'); }
-         } else {
-             setView('profile');
-         }
-         setLoadingInitial(false);
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (session?.user) {
+             await handleAuthUser(session.user);
+        } else {
+             // Fallback to local storage if no session
+             const storedUser = localStorage.getItem('orbitz_user');
+             if (storedUser) {
+                 try {
+                    const user: User = JSON.parse(storedUser);
+                    setCurrentUser(user);
+                    await loadUserData(user.id);
+                    setView('dashboard');
+                 } catch(e) { setView('profile'); }
+             } else {
+                 setView('profile');
+             }
+             setLoadingInitial(false);
+        }
+      } catch (e) {
+          console.error("Auth init failed:", e);
+          setLoadingInitial(false);
+          setView('profile');
       }
     };
     
@@ -541,6 +573,8 @@ export default function App() {
               alt="Orbitz" 
               className="w-20 h-20 animate-pulse drop-shadow-[0_0_25px_rgba(99,102,241,0.5)]" 
             />
+            {/* Loading Text */}
+            <div className="text-zinc-500 text-xs font-mono animate-pulse mt-2">INITIALIZING NEURAL LINK...</div>
         </div>
       );
   }
