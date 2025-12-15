@@ -34,8 +34,19 @@ export interface LiveCaption {
 }
 
 export default function App() {
+  // Data State with Lazy Initialization for Persistence
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    try {
+      const stored = localStorage.getItem('orbitz_user');
+      return stored ? JSON.parse(stored) : null;
+    } catch (e) { return null; }
+  });
+
   // Navigation State
-  const [view, setView] = useState<'profile' | 'dashboard' | 'call' | 'waiting_room'>('profile');
+  const [view, setView] = useState<'profile' | 'dashboard' | 'call' | 'waiting_room'>(() => {
+    return localStorage.getItem('orbitz_user') ? 'dashboard' : 'profile';
+  });
+
   const [showHistory, setShowHistory] = useState(false);
   const [showParticipants, setShowParticipants] = useState(false);
   const [googleAction, setGoogleAction] = useState<'calendar' | 'gmail' | 'drive' | null>(null);
@@ -49,12 +60,12 @@ export default function App() {
       defaultVideoOn: true
   });
 
-  // Data State
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [contacts, setContacts] = useState<User[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
-  const [loadingInitial, setLoadingInitial] = useState(true);
+  
+  // Initialize loading based on whether we already have a user
+  const [loadingInitial, setLoadingInitial] = useState(() => !localStorage.getItem('orbitz_user'));
   
   // Call State
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
@@ -129,6 +140,9 @@ export default function App() {
   
   // Safety Timeout to prevent infinite loading
   useEffect(() => {
+    // Only set timeout if we are actually loading (no user)
+    if (!loadingInitial) return;
+
     const timer = setTimeout(() => {
         if (loadingInitial) {
             console.warn("Auth initialization timed out, releasing loading lock.");
@@ -176,7 +190,10 @@ export default function App() {
             }
         } catch (e) {
             console.error("Error handling auth user:", e);
-            setLoadingInitial(false);
+            // If we failed to get profile but have local user, keep local user
+            if (!currentUser) {
+                setLoadingInitial(false);
+            }
         }
     };
 
@@ -191,10 +208,11 @@ export default function App() {
              const storedUser = localStorage.getItem('orbitz_user');
              if (storedUser) {
                  try {
+                    // We already set state in lazy init, just confirming here
                     const user: User = JSON.parse(storedUser);
                     setCurrentUser(user);
+                    if (view === 'profile') setView('dashboard');
                     await loadUserData(user.id);
-                    setView('dashboard');
                  } catch(e) { setView('profile'); }
              } else {
                  setView('profile');
@@ -204,20 +222,31 @@ export default function App() {
       } catch (e) {
           console.error("Auth init failed:", e);
           setLoadingInitial(false);
-          setView('profile');
+          // Don't override view if we have currentUser from local storage
+          if (!currentUser) setView('profile');
       }
     };
+    
+    // Check if we need to load user data if lazy init worked
+    if (currentUser) {
+        loadUserData(currentUser.id);
+    }
     
     initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
-             setLoadingInitial(true);
+             // If we already have a user and it matches, don't show loading
+             if (currentUser?.id !== session.user.id) {
+                 setLoadingInitial(true);
+             }
              await handleAuthUser(session.user);
         }
         if (event === 'SIGNED_OUT') {
             setCurrentUser(null);
             setView('profile');
+            localStorage.removeItem('orbitz_user');
+            setLoadingInitial(false);
         }
     });
 
@@ -250,7 +279,10 @@ export default function App() {
     saveUserToStorage(user);
     setCurrentUser(user);
     loadUserData(user.id);
-    setView('dashboard');
+    // Only force dashboard if we are in profile view or loading
+    if (view === 'profile' || loadingInitial) {
+        setView('dashboard');
+    }
     setLoadingInitial(false);
   };
 

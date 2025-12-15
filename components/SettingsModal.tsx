@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { User, Language } from '../types';
 import { supabase } from '../lib/supabase';
-import { X, User as UserIcon, Lock, Monitor, Smartphone, Camera, Mic, Volume2, Save, Check, Loader2 } from 'lucide-react';
+import { X, User as UserIcon, Lock, Monitor, Smartphone, Camera, Mic, Volume2, Save, Check, Loader2, LogOut } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -92,6 +92,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           setNewPassword('');
           setConfirmPassword('');
       }
+  };
+
+  const handleSignOut = async () => {
+      await supabase.auth.signOut();
+      onClose();
   };
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -231,7 +236,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             <p className="text-sm text-zinc-500">Manage credentials and access.</p>
                         </div>
 
-                        <form onSubmit={handleChangePassword} className="space-y-5 max-w-lg bg-white/5 p-8 rounded-3xl border border-white/5 backdrop-blur-sm">
+                        <form onSubmit={handleChangePassword} className="space-y-5 max-w-lg bg-white/5 p-8 rounded-3xl border border-white/5 backdrop-blur-sm mb-8">
                             <h4 className="font-medium text-white mb-4">Change Password</h4>
                             <div>
                                 <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 pl-1">New Password</label>
@@ -265,6 +270,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 {passwordStatus === 'saving' ? 'Updating...' : 'Update Password'}
                             </button>
                         </form>
+
+                        <div className="max-w-lg pt-4 border-t border-white/10">
+                            <h4 className="font-medium text-white mb-4">Session Control</h4>
+                            <button 
+                                type="button" 
+                                onClick={handleSignOut}
+                                className="w-full py-4 bg-red-900/20 hover:bg-red-900/40 text-red-400 border border-red-500/20 rounded-2xl font-medium transition-colors flex items-center justify-center gap-2"
+                            >
+                                <LogOut size={18} />
+                                Sign Out
+                            </button>
+                        </div>
                     </div>
                 )}
 
